@@ -1,5 +1,9 @@
 package Controller;
-
+import Service.AccountService;
+import Service.MessageService;
+import Model.Account;
+import Model.Message;
+import java.util.List;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
 
@@ -9,6 +13,14 @@ import io.javalin.http.Context;
  * refer to prior mini-project labs and lecture materials for guidance on how a controller may be built.
  */
 public class SocialMediaController {
+
+    private AccountService accountService;
+    private MessageService messageService;
+
+    public SocialMediaController(){
+        this.accountService = new AccountService();
+        this.messageService = new MessageService();
+    }
     /**
      * In order for the test cases to work, you will need to write the endpoints in the startAPI() method, as the test
      * suite must receive a Javalin object from this method.
@@ -16,8 +28,15 @@ public class SocialMediaController {
      */
     public Javalin startAPI() {
         Javalin app = Javalin.create();
-        app.get("example-endpoint", this::exampleHandler);
+        app.post("/register", this::registerAccountHandler);
+        app.post("/login",this::loginHandler);
+        app.post("/messages",this::createMessageHandler);
+        app.get("/messages",this::getAllMessagesHandler);
+        app.get("/messages/{message_id}",this::getMessageByIdHandler);
+        app.delete("/messages/{message_id}",this::deleteMessageHandler);
+        app.patch("/messages/{message_id}",this::updateMessageHandler);
 
+        app.get("/accounts/{account_id}/messages",this::getMessagesByAccountHandler);
         return app;
     }
 
@@ -25,9 +44,89 @@ public class SocialMediaController {
      * This is an example handler for an example endpoint.
      * @param context The Javalin Context object manages information about both the HTTP request and response.
      */
-    private void exampleHandler(Context context) {
-        context.json("sample text");
+    private void registerAccountHandler(Context context) {
+        Account account = context.bodyAsClass(Account.class);
+        Account registeredAccount = accountService.registerAccount(account);
+
+        if(registeredAccount != null){
+           context.json(registeredAccount);
+        }else{
+            context.status(400);
+        }
+    }
+    
+
+    private void loginHandler(Context context){
+        Account credentials =context.bodyAsClass(Account.class);
+        Account authenticatedAccount = accountService.login(credentials.getUsername(),credentials.getPassword());
+
+        if(authenticatedAccount != null){
+            context.json(authenticatedAccount);
+        }else{
+            context.status(401);
+        }
+    }
+    
+    
+   private void createMessageHandler(Context context){
+    Message message = context.bodyAsClass(Message.class);
+    Message createdMessage = messageService.createMessage(message);
+
+    if(createdMessage != null){
+       
+        context.json(createdMessage);
+    }else{
+        context.status(400);
+    }
+   }
+
+
+    private void getAllMessagesHandler(Context context){
+        List<Message> messages= messageService.getAllMessages();
+        context.json(messages);
     }
 
+
+    private void getMessageByIdHandler(Context context){
+        int messageId= Integer.parseInt(context.pathParam("message_id"));
+        Message message  = messageService.getMessageById(messageId);
+        
+        if(message != null){
+            context.json(message);
+        }else{
+            context.json("");
+        }
+    }
+
+
+    private void deleteMessageHandler(Context context){
+        int messageId = Integer.parseInt(context.pathParam("message_id"));
+        Message deletedMessage = messageService.deleteMessage(messageId);
+
+        if(deletedMessage != null){
+            context.json(deletedMessage);
+        }else{
+            context.json("");
+        }
+    }
+
+    private void updateMessageHandler(Context context){
+        int messageId = Integer.parseInt(context.pathParam("message_id"));
+        Message updatedData = context.bodyAsClass(Message.class);
+
+        Message updatedMessage = messageService.updateMessage(messageId,updatedData.getMessage_text());
+
+        if(updatedMessage != null){
+            context.json(updatedMessage);
+        }else{
+            context.status(400);
+        }
+    }
+
+    private void getMessagesByAccountHandler(Context context){
+        int accountId = Integer.parseInt(context.pathParam("account_id"));
+        List<Message> accountMessages = messageService.getMessagesByAccount(accountId);
+        context.json(accountMessages);
+    }
 
 }
